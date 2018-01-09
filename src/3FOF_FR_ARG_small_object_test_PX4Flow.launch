@@ -1,0 +1,49 @@
+<launch>
+
+  <!-- Start the VRPN Client (only needed if recording data)-->
+  <include file="/opt/ros/kinetic/share/vrpn_client_ros/launch/SO_vicon.launch"/>
+
+  <!-- Start coms to PixHawk via Mavros -->
+  <include file="/opt/ros/kinetic/share/mavros/launch/px4.launch"/>
+
+  <!-- Start the camera node -->
+  <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
+    <param name="video_device" value="/dev/video0" />
+    <param name="image_width" value="320" />
+    <param name="image_height" value="240" />
+    <param name="pixel_format" value="yuyv" />
+    <param name="camera_frame_id" value="usb_cam" />
+    <param name="io_method" value="mmap"/>
+    <param name="framerate" value="30"/>
+  </node>
+
+ <!-- Argument for choosing control method -->
+ <arg name="Use_FR" default="false">
+
+ <!-- Start the FR node if argument was passed -->
+ <group if="$Use_FR">
+  <node pkg="object_avoidance" type="FR_60hz60gamma.py" name="FOF_node" output="screen" />
+ </group>
+ <!-- Start the optic flow node if not -->
+ <group unless="$Use_FR">
+  <node pkg="object_avoidance" type="FlowofFlow_controller.py" name="FOF_node" output="screen" />
+ </group>
+
+  <!-- Start the flight code (steering controller) -->
+  <node pkg="flight_code" type="small_object_flight_code_PX4" name="flight_control" output="screen" />
+
+
+  <!-- Start the main topic publisher -->
+  <node pkg="flight_code" type="FOF_data_pub_PX4" name="FOF_data_pub" output="screen" />
+
+
+
+<!-- RECORD TEMPLATE -->
+
+  <!-- Start recording with Rosbag
+  <node pkg="rosbag" type="record" name="rosbag_OF_data"
+        args=" -o /tmp/rosbag_OF_data /optic_flow/optic_flow /optic_flow/fourier_coefs " />
+  <node pkg="rosbag" type="record" name="rosbag_flight_data"
+        args=" -o /tmp/rosbag_flight_data  /mavros/mocap/pose /mavros/rc/in " />
+-->
+</launch>
