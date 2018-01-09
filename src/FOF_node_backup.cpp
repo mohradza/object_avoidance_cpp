@@ -151,9 +151,8 @@ public:
 
 int main(int argc, char **argv){
     ros::init(argc, argv, "FOF_node");
-    SubscribeAndPublish FlowSubPubObject;
-    ros::Time::init();
     ros::Rate r(150);  // 150 Hz
+    SubscribeAndPublish FlowSubPubObject;
     while(ros::ok()){
         ros::spinOnce();
         r.sleep();
