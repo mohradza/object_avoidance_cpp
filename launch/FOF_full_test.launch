@@ -18,6 +18,9 @@
   </node>
   
   <!-- Start the optic flow node -->
+  <node pkg="object_avoidance" type="Flow6060.py" name="Flow_node" output="screen" />
+
+ <!-- Start the control calc node -->
  <node pkg="object_avoidance_cpp" type="object_avoidance_cpp_node" name="FOF_node" output="screen" />
 
   <!-- Start the flight code (steering controller) -->
