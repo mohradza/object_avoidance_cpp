@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(object_avoidance_cpp)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -52,6 +52,7 @@ add_message_files(
    FILES
    FlowRingOutMsg.msg
    YawRateCmdMsg.msg
+   FlowOutMsg.msg
  )
 
 ## Generate services in the 'srv' folder
@@ -134,12 +135,19 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
- add_executable(${PROJECT_NAME}_node src/FOF_node.cpp)
+ add_executable(FOF_node src/FOF.cpp)
+ add_dependencies(FOF_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+## Specify libraries to link a library or executable target against
+ target_link_libraries(FOF_node
+   ${catkin_LIBRARIES}
+ )
 
- add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+ add_executable(FR_node src/FR.cpp)
+
+ add_dependencies(FR_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
- target_link_libraries(${PROJECT_NAME}_node
+ target_link_libraries(FR_node
    ${catkin_LIBRARIES}
  )
 

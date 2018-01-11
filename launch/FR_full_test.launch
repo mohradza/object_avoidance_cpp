@@ -1,0 +1,34 @@
+<launch>
+  
+  <!-- Start the VRPN Client (only needed if recording data)-->
+<!--  <include file="/opt/ros/kinetic/share/vrpn_client_ros/launch/SO_vicon.launch"/> -->
+
+  <!-- Start coms to PixHawk via Mavros -->
+  <include file="/opt/ros/kinetic/share/mavros/launch/px4.launch"/>
+
+  <!-- Start the camera node -->
+  <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
+    <param name="video_device" value="/dev/video0" />
+    <param name="image_width" value="320" />
+    <param name="image_height" value="240" />
+    <param name="pixel_format" value="yuyv" />
+    <param name="camera_frame_id" value="usb_cam" />
+    <param name="io_method" value="mmap"/>
+    <param name="framerate" value="60"/>
+  </node>
+  
+  <!-- Start the optic flow node -->
+  <node pkg="object_avoidance" type="Flow6060.py" name="Flow_node" output="screen" />
+
+ <!-- Start the control calc node -->
+ <node pkg="object_avoidance_cpp" type="FR_node" name="FOF_node" output="screen" />
+
+  <!-- Start the flight code (steering controller) -->
+  <node pkg="flight_code" type="small_object_flight_code_PX4Flow" name="flight_control" output="screen" />
+
+
+
+  <!-- Start the main topic publisher 
+  <node pkg="flight_code" type="FOF_data_pub_PX4Flow" name="FOF_data_pub" output="screen" />
+-->
+</launch>
