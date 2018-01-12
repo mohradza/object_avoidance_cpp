@@ -180,16 +180,20 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::FlowRingOutMsg::Co
     } else {
         yaw_rate_cmd_msg.yaw_rate_cmd = 0.0;
     }
-/*    for(int i= 0; i < 60; i++){ 
-        flow_out_msg.Qdot_WF_out[i] = Qdot_WF[i];
-        flow_out_msg.Qdot_SF_out[i] = Qdot_SF[i];
+    for(int i= 0; i < 60; i++){ 
+        flow_out_msg.Qdot_WF_out.push_back(Qdot_WF[i]);
+        flow_out_msg.Qdot_SF_out.push_back(Qdot_SF[i]);
     }
     flow_out_pub_.publish(flow_out_msg);
-*/
+    flow_out_msg.Qdot_WF_out.clear();
+    flow_out_msg.Qdot_SF_out.clear();
+
 //    ROS_INFO_THROTTLE(2,"val %f",Qdot_WF[1]);
-    copy(&Qdot_WF[0], &Qdot_WF[60], back_inserter(flow_out_msg.Qdot_WF_out));
-    copy(&Qdot_SF[0], &Qdot_SF[60], back_inserter(flow_out_msg.Qdot_SF_out));
-    flow_out_pub_.publish(flow_out_msg);
+//    copy(&Qdot_WF[0], &Qdot_WF[60], back_inserter(flow_out_msg.Qdot_WF_out));
+//    copy(&Qdot_SF[0], &Qdot_SF[60], back_inserter(flow_out_msg.Qdot_SF_out));
+//   flow_out_msg.Qdot_WF_out(std::begin(Qdot_WF), std::end(Qdot_WF));
+
+//   flow_out_pub_.publish(flow_out_msg);
 
 
     yaw_cmd_pub_.publish(yaw_rate_cmd_msg);
