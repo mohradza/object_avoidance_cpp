@@ -4,7 +4,7 @@
 <!--  <include file="/opt/ros/kinetic/share/vrpn_client_ros/launch/SO_vicon.launch"/> -->
 
   <!-- Start coms to PixHawk via Mavros -->
-  <include file="/opt/ros/kinetic/share/mavros/launch/px4.launch"/>
+<!--  <include file="/opt/ros/kinetic/share/mavros/launch/px4.launch"/> -->
 
   <!-- Start the camera node -->
   <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
@@ -21,11 +21,11 @@
   <node pkg="object_avoidance" type="Flow6060.py" name="Flow_node" output="screen" />
 
  <!-- Start the control calc node -->
- <node pkg="object_avoidance_cpp" type="object_avoidance_cpp_node" name="FOF_node" output="screen" />
-
+<!-- <node pkg="object_avoidance_cpp" type="object_avoidance_cpp_node" name="FOF_node" output="screen" />
+-->
   <!-- Start the flight code (steering controller) -->
-  <node pkg="flight_code" type="small_object_flight_code_PX4Flow" name="flight_control" output="screen" />
-
+<!--  <node pkg="flight_code" type="small_object_flight_code_PX4Flow" name="flight_control" output="screen" />
+-->
 
   <!-- Start the main topic publisher 
   <node pkg="flight_code" type="FOF_data_pub_PX4Flow" name="FOF_data_pub" output="screen" />
