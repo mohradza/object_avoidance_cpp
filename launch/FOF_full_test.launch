@@ -1,7 +1,7 @@
 <launch>
   
   <!-- Start the VRPN Client (only needed if recording data)-->
-<!--  <include file="/opt/ros/kinetic/share/vrpn_client_ros/launch/SO_vicon.launch"/> -->
+  <include file="/opt/ros/kinetic/share/vrpn_client_ros/launch/SO_vicon.launch"/>
 
   <!-- Start coms to PixHawk via Mavros -->
 <!--  <include file="/opt/ros/kinetic/share/mavros/launch/px4.launch"/> -->

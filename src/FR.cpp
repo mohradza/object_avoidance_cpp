@@ -42,7 +42,7 @@ private:
 
     int num_rings, num_points;
     int index, index_max;
-    int sign;
+    int sign, pixel_scale;
     float yaw_rate_cmd;
     float min_threshold;
     float gamma_arr[60];
@@ -104,7 +104,7 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::FlowRingOutMsg::Co
     yaw_rate_cmd = 0.0;
     min_threshold = 0.0;
     sign = 0;
-  
+    pixel_scale = 60;
   // Compute average ring flow
     for (int r = 0; r < num_rings; r++) {
         for (int i = 0; i < num_points; i++) {
@@ -118,9 +118,9 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::FlowRingOutMsg::Co
 
     // Reformat the vector to -pi to pi
     for (int i = 0; i < num_points; i++) {
-        if (i < 30) OF_tang[i] = -average_OF_tang[30 - i];
-        if (i >= 30) OF_tang[i] = average_OF_tang[(90 - 1) - i];
-    }
+        if (i < 30) OF_tang[i] = -average_OF_tang[30 - i]*pixel_scale;
+        if (i >= 30) OF_tang[i] = average_OF_tang[(90 - 1) - i]*pixel_scale;
+    }i
 
     // Compute the FR control
     // // // // // // // // //
@@ -170,7 +170,7 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::FlowRingOutMsg::Co
         }
     }
     d_0 = Qdot_SF[index_max];
-
+    ROS_INFO_THROTTLE(.5,"d_0 = %f", d_0);
     // Calculate the control signal      
     if (d_0 > min_threshold) {
         r_0 = gamma_arr[index_max];
@@ -180,14 +180,14 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::FlowRingOutMsg::Co
     } else {
         yaw_rate_cmd_msg.yaw_rate_cmd = 0.0;
     }
-    for(int i= 0; i < 60; i++){ 
+/*    for(int i= 0; i < 60; i++){ 
         flow_out_msg.Qdot_WF_out.push_back(Qdot_WF[i]);
         flow_out_msg.Qdot_SF_out.push_back(Qdot_SF[i]);
     }
     flow_out_pub_.publish(flow_out_msg);
     flow_out_msg.Qdot_WF_out.clear();
     flow_out_msg.Qdot_SF_out.clear();
-
+*/
 //    ROS_INFO_THROTTLE(2,"val %f",Qdot_WF[1]);
 //    copy(&Qdot_WF[0], &Qdot_WF[60], back_inserter(flow_out_msg.Qdot_WF_out));
 //    copy(&Qdot_SF[0], &Qdot_SF[60], back_inserter(flow_out_msg.Qdot_SF_out));

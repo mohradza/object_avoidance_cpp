@@ -48,11 +48,12 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
+add_message_files(DIRECTORY msg
    FILES
    FlowRingOutMsg.msg
    YawRateCmdMsg.msg
    FlowOutMsg.msg
+   FlowOutNewMsg.msg
  )
 
 ## Generate services in the 'srv' folder
@@ -107,7 +108,7 @@ add_message_files(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES obj_avoid
-  CATKIN_DEPENDS roscpp message_runtime std_msgs
+  CATKIN_DEPENDS roscpp message_generation message_runtime std_msgs
 #  DEPENDS system_lib
 )
 

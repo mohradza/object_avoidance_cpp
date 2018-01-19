@@ -18,7 +18,7 @@
 #include <std_msgs/Bool.h>
 #include <object_avoidance_cpp/YawRateCmdMsg.h>
 #include <object_avoidance_cpp/FlowRingOutMsg.h>
-#include <object_avoidance_cpp/FlowOutMsg.h>
+#include <object_avoidance_cpp/FlowOutNewMsg.h>
 #include <iostream>
 using namespace std;
 
@@ -40,21 +40,22 @@ private:
     float R_FOF[60];
     float LP_OF[60]; 
     int num_rings; 
-    int index; 
+    int index;
+    int pixel_scale; 
     float yaw_rate_cmd;
     float min_threshold;
     object_avoidance_cpp::YawRateCmdMsg yaw_rate_cmd_msg; 
     int sign;
     float gamma_arr[60];
     object_avoidance_cpp::FlowRingOutMsg current_flow;
-    object_avoidance_cpp::FlowOutMsg flow_out_msg;
+    object_avoidance_cpp::FlowOutNewMsg flow_out_msg;
 public:
     SubscribeAndPublish(){
         // Create the yaw rate command publisher
         ROS_INFO("Object Created");
         yaw_cmd_pub_ = nh_.advertise<object_avoidance_cpp::YawRateCmdMsg>
              ("/yaw_cmd_out", 10);
-        flow_out_pub_ = nh_.advertise<object_avoidance_cpp::FlowOutMsg>
+        flow_out_pub_ = nh_.advertise<object_avoidance_cpp::FlowOutNewMsg>
              ("/flow_data_out", 10);
 
         //Initialize the gamma array
@@ -95,7 +96,7 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::FlowRingOutMsg::Co
         index = 0;
         yaw_rate_cmd = 0.0;
         min_threshold = 0.0;
-
+        pixel_scale = 60;
 
         // Compute average ring flow
         for(int r = 0; r< 5; r++){
@@ -108,18 +109,20 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::FlowRingOutMsg::Co
 //Good        ROS_INFO_THROTTLE(2,"ave_OF_tang: %f", average_OF_tang[45]);
 
         // Compute the spatial average
-        for(int i = 0; i < 60; i++) average_OF_tang[i] *= .2; 
+        for(int i = 0; i < 60; i++){
+            average_OF_tang[i] *= .2; 
+        }
 
         // Reformat the vector to -pi to pi
         for(int i = 0; i < 60; i++){
             if(i < 30){
-                OF_tang[i] = -average_OF_tang[30 - i];
+                OF_tang[i] = -average_OF_tang[30 - i]*pixel_scale;
             }
             if(i >= 30){
-                OF_tang[i] = average_OF_tang[(90 - 1) - i];
+                OF_tang[i] = average_OF_tang[(90 - 1) - i]*pixel_scale;
             }
         }
-
+        
         // Compute the FOF control
         // // // // // // // // //
     
@@ -146,34 +149,39 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::FlowRingOutMsg::Co
         for(int i = 0; i < 60; i++){
             std_dev += pow((R_FOF[i] - mean_val), 2);
         }
-        std_dev = pow(std_dev / 60, 0.5);
+        std_dev /= 60;
+        std_dev = pow(std_dev, 0.5);
         min_threshold = 3*std_dev;
 //Good        ROS_INFO_THROTTLE(2,"Min thresh: %f", min_threshold);
 
-        // Extract r_0 and d_0 from process OF signal
+        // Find the max val
         for(int i = 0; i < 60; i++){
-            if(R_FOF[i] > r_0){
+            if(R_FOF[i] > d_0){
                 d_0 = R_FOF[i];
                 r_0 = gamma_arr[i];
             }
         }
-
-        if(r_0 > 0){sign = 1;}
-        else{sign = -1;}
-  
-        // Calculate the control signal
+        
+        if(r_0 > 0){
+            sign = 1;
+        } else {
+            sign = -1;
+        }
         if(d_0 > min_threshold){
             yaw_rate_cmd_msg.yaw_rate_cmd = k_0*sign*exp(-c_psi*abs(r_0))*exp(-c_d/abs(d_0));
         } else {
             yaw_rate_cmd_msg.yaw_rate_cmd = 0.0;
         }
+        ROS_INFO_THROTTLE(.5,"d_0 = %f, min thresh = %f, r_0 = %f",d_0,min_threshold, r_0); 
         yaw_cmd_pub_.publish(yaw_rate_cmd_msg);    
 
     for(int i = 0; i < 60; i++){
-        flow_out_msg.Qdot_WF_out.push_back(R_FOF[i]);
+        flow_out_msg.Qdot_ave.push_back(OF_tang[i]);
+        flow_out_msg.Qdot_SF_out.push_back(R_FOF[i]);
     }
     flow_out_pub_.publish(flow_out_msg);
-    flow_out_msg.Qdot_WF_out.clear();
+    flow_out_msg.Qdot_ave.clear();
+    flow_out_msg.Qdot_SF_out.clear();
 
     // End of flow calc  
 }
