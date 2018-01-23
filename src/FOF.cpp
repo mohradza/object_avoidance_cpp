@@ -40,13 +40,12 @@ private:
     float R_FOF[60];
     float LP_OF[60]; 
     int num_rings; 
-    int index;
-    int pixel_scale; 
+    int index, r_index;
     float yaw_rate_cmd;
     float min_threshold;
     object_avoidance_cpp::YawRateCmdMsg yaw_rate_cmd_msg; 
     int sign;
-    float gamma_arr[60];
+    float gamma_arr[60], gamma_new[60];
     object_avoidance_cpp::FlowRingOutMsg current_flow;
     object_avoidance_cpp::FlowOutNewMsg flow_out_msg;
 public:
@@ -60,10 +59,17 @@ public:
 
         //Initialize the gamma array
         for(int i = 0; i < 60; i++){
-           gamma_arr[i] = (2*M_PI/60)*i;
+           gamma_arr[i] = ((2*M_PI-.017)/60)*i;
+           if (i < 30) {
+               gamma_new[i] = gamma_arr[i];
+           }
+           else {
+               gamma_new[i] = -2*M_PI + gamma_arr[i];
+           }
            R_FOF[i] = 0.0;
            LP_OF[i] = 0.0;
            OF_tang[i] = 0.0;
+           OF_tang_prev[i] = 0.0;
            average_OF_tang[i] = 0.0;
         }
          
@@ -77,14 +83,16 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::FlowRingOutMsg::Co
         current_flow = *msg;
         Qdot_u = current_flow.Qdot_u;
         Qdot_v = current_flow.Qdot_v;
+
         for(int i = 0; i < 60; i++){
-            OF_tang_prev[i] = OF_tang[i];
+            average_OF_tang[i] = 0.0;
         }
-        //ROS_INF0("%f",Qdot_u[1]);
+ 
         // Initialize all variables
-        dt = .05;
+        dt = .1;
         tau = .75;
         alpha = dt/(tau+dt);
+//        alpha = .5;
         k_0 = .3;
         c_psi = .1;
         c_d = .25;
@@ -96,46 +104,45 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::FlowRingOutMsg::Co
         index = 0;
         yaw_rate_cmd = 0.0;
         min_threshold = 0.0;
-        pixel_scale = 60;
 
         // Compute average ring flow
-        for(int r = 0; r< 5; r++){
+        for(int r = 0; r < 5; r++){
             for(int i = 0; i < 60; i++){
                 index = r*60 + i;
-                average_OF_tang[i] = average_OF_tang[i] + (Qdot_u[index]*sin(gamma_arr[i])-1*Qdot_v[index]*cos(gamma_arr[i]));
+                average_OF_tang[i] = average_OF_tang[i] + (Qdot_u[index]*sin(gamma_arr[i])+Qdot_v[index]*cos(gamma_arr[i]));
             }
         }
-
-//Good        ROS_INFO_THROTTLE(2,"ave_OF_tang: %f", average_OF_tang[45]);
 
         // Compute the spatial average
         for(int i = 0; i < 60; i++){
-            average_OF_tang[i] *= .2; 
+            OF_tang[i] = .2*average_OF_tang[i]; 
         }
+/*
 
         // Reformat the vector to -pi to pi
         for(int i = 0; i < 60; i++){
-            if(i < 30){
-                OF_tang[i] = -average_OF_tang[30 - i]*pixel_scale;
-            }
             if(i >= 30){
-                OF_tang[i] = average_OF_tang[(90 - 1) - i]*pixel_scale;
+                OF_tang[i] = -average_OF_tang[(90 - 1) - i];
+            } else {
+                OF_tang[i] = -average_OF_tang[i];
             }
         }
         
+*/      
         // Compute the FOF control
         // // // // // // // // //
     
         // Run the LPF
         for(int i = 0; i < 60; i++){
             LP_OF[i] = alpha*OF_tang[i] + (1 - alpha)*OF_tang_prev[i];   
+            // THIS IS NEW
+            OF_tang_prev[i] = LP_OF[i];
         }
 
         // Final FOF Calc
         for(int i = 0; i < 59; i++){
             R_FOF[i] = LP_OF[i]*OF_tang[i+1] - OF_tang[i]*LP_OF[i+1];
         }
-//Good        ROS_INFO_THROTTLE(2,"R_FOF: %f", R_FOF[45]);
 
         R_FOF[59] = 0.0;
         mean_sum = 0.0;
@@ -145,20 +152,19 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::FlowRingOutMsg::Co
             mean_sum += R_FOF[i];
         }
         mean_val = mean_sum / 60;
-//Good        ROS_INFO_THROTTLE(2,"Mean Val: %f", mean_val);
+        
         for(int i = 0; i < 60; i++){
             std_dev += pow((R_FOF[i] - mean_val), 2);
         }
         std_dev /= 60;
         std_dev = pow(std_dev, 0.5);
         min_threshold = 3*std_dev;
-//Good        ROS_INFO_THROTTLE(2,"Min thresh: %f", min_threshold);
 
         // Find the max val
         for(int i = 0; i < 60; i++){
             if(R_FOF[i] > d_0){
                 d_0 = R_FOF[i];
-                r_0 = gamma_arr[i];
+                r_0 = gamma_new[i];
             }
         }
         
@@ -172,7 +178,7 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::FlowRingOutMsg::Co
         } else {
             yaw_rate_cmd_msg.yaw_rate_cmd = 0.0;
         }
-        ROS_INFO_THROTTLE(.5,"d_0 = %f, min thresh = %f, r_0 = %f",d_0,min_threshold, r_0); 
+//        ROS_INFO_THROTTLE(.5,"d_0 = %f, min thresh = %f, r_0 = %f",d_0,min_threshold, r_0); 
         yaw_cmd_pub_.publish(yaw_rate_cmd_msg);    
 
     for(int i = 0; i < 60; i++){

@@ -1,0 +1,6 @@
+<launch>
+  <node pkg="rosbag" type="record" name="flow_data"
+        args=" -O /tmp/flight_data /FOF_data /yaw_cmd_out /vrpn_client_node/flow330/pose" />
+
+</launch>
+
