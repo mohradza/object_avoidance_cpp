@@ -21,6 +21,9 @@
 #include <object_avoidance_cpp/FRHarmonicsMsg.h>
 #include <object_avoidance_cpp/FRDTMsg.h>
 #include <iostream>
+#include <numeric>
+//#define PI = 3.1415
+
 using namespace std;
 
 class SubscribeAndPublish {
@@ -37,7 +40,7 @@ private:
     std::vector<float> Qdot_v;
 
     float k_0, c_psi, c_d, dg;
-    float a_0, a[4], b[4];
+    float a_0, a[4], b[4], a_sum[60], b_sum[60];
     float mean_val, mean_sum, std_dev, r_0, d_0;
     float average_OF_tang[];
     float OF_tang[60], Qdot_WF[60], Qdot_SF[60];
@@ -71,10 +74,16 @@ public:
         // Create the dynamic threshold message publisher
         dt_out_pub_ = nh_.advertise<object_avoidance_cpp::FRDTMsg>
                 ("/FR_dt",10);
-
+        // initialize static variables
+        num_points = 60;
+        num_rings = 5;
+        k_0 = .5;
+        c_psi = .1;
+        c_d = .1;
+        
         //Initialize the gamma array
         for (int i = 0; i < num_points; i++) {
-            gamma_arr[i] = ((2*M_PI-.017)/num_points)*i;
+            gamma_arr[i] = (2*M_PI-.017)/num_points*i;
             if (i < (num_points/2)){
                 gamma_new[i] = gamma_arr[i];
             } else {
@@ -90,6 +99,8 @@ public:
             }
         }
 
+        dg = gamma_arr[2] - gamma_arr[1];
+        ROS_INFO("dg: %f", dg);
     }
     void flow_cb(const object_avoidance_cpp::RingsFlowMsg::ConstPtr& msg);
 }; // End of class SubscribeAndPublish
@@ -103,16 +114,14 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::Cons
     for(int i = 0; i < num_points; i++){
         average_OF_tang[i] = 0.0;
         Qdot_WF[i] = 0.0;
+        a_sum[i] = 0.0;
+        b_sum[i] = 0.0;
         if(i < 4){
             a[i] = 0.0;
             b[i] = 0.0;
         }
     }   
     // Parameters
-    k_0 = .5;
-    c_psi = .1;
-    c_d = .1;
-    dg = gamma_arr[2] - gamma_arr[1];
     a_0 = 0.0;
     mean_val = 0.0;
     mean_sum = 0.0;
@@ -120,8 +129,6 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::Cons
     r_0 = 0.0;
     d_0 = 0.0;
     index_max = 0;
-    num_rings = 5;
-    num_points = 60;
     index = 0;
     yaw_rate_cmd = 0.0;
     min_threshold = 0.0;
@@ -143,32 +150,38 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::Cons
 
     // Compute the FR control
     // // // // // // // // //
-   
+    //a_0 = std::accumulate(OF_tang, OF_tang + num_points, 0.0);
     // Compute coefficients for fourier residuals
-    for (int i = 0; i < num_points; i++) {
-        a_0 += cos(0 * gamma_arr[i]) * OF_tang[i];
-        for (int n = 0; n < 4; n++) {
-            a[n] += cos((n + 1) * gamma_arr[i]) * OF_tang[i];
-            b[n] += sin((n + 1) * gamma_arr[i]) * OF_tang[i];
-        }
+
+    for (int i = 0; i < num_points; i++){
+        a_0 = a_0 + cos(0 * gamma_arr[i]) * OF_tang[i];
     }
-    // Convert coefficients to be in terms of degrees
-    a_0 *= dg / M_PI;
+
     for (int n = 0; n < 4; n++) {
-        a[n] *= dg / M_PI;
-        b[n] *= dg / M_PI;
+        for (int i = 0; i < num_points; i++) {
+           // a_sum[i] = cos((n + 1) * gamma_arr[i]) * OF_tang[i];
+           // b_sum[i] = sin((n + 1) * gamma_arr[i]) * OF_tang[i];
+           a[n] = a[n] +  cos((n+1)*gamma_arr[i])*OF_tang[i];
+           b[n] = b[n] +  sin((n+1)*gamma_arr[i])*OF_tang[i];
+        }
+       //a[n] = std::accumulate(a_sum, a_sum + num_points, 0.0);
+       //b[n] = std::accumulate(b_sum, b_sum + num_points, 0.0);
+    }
+
+    // Convert coefficients to be in terms of degrees
+    a_0 = (a_0*dg)/M_PI;
+    for (int n = 0; n < 4; n++) {
+        a[n] = (a[n]*dg)/M_PI;
+        b[n] = (b[n]*dg)/M_PI;
     }
     // Compute Qdot_WF
     for (int i = 0; i < num_points; i++) {
         for (int n = 0; n < 4; n++) {
-            Qdot_WF[i] += a[n] * cos((n + 1) * gamma_arr[i]) + b[n] * sin((n + 1) * gamma_arr[i]);
+            Qdot_WF[i] = Qdot_WF[i] +  a[n] * cos((n + 1) * gamma_arr[i]) + b[n] * sin((n + 1) * gamma_arr[i]);
         }
-        Qdot_WF[i] += a_0 / 2.0;
+        Qdot_WF[i] = Qdot_WF[i] + a_0 / 2.0;
     }
 
-
-    // Confirmed WORKING up to this point 1/23/18
-  
     // Remove the WF signal from the full measured OF
     for (int i = 0; i < num_points; i++) {
         Qdot_SF[i] = OF_tang[i] - Qdot_WF[i];
@@ -234,8 +247,7 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::Cons
         dt_out_msg.r_0 = r_0;
         dt_out_msg.d_0 = d_0;
         dt_out_pub_.publish(dt_out_msg);
-        
-    }
+    }        
 }
 
 int main(int argc, char **argv) {
