@@ -27,6 +27,9 @@ add_message_files(DIRECTORY msg
    FRHarmonicsMsg.msg
    FRDTMsg.msg
    FRAllDataMsg.msg
+   FOFFlowMsg.msg
+   FOFDTMsg.msg
+   FOFAllDataMsg.msg
  )
 
 ## Generate added messages and services with any dependencies listed here
@@ -50,6 +53,10 @@ target_link_libraries(FOF_node ${catkin_LIBRARIES})
 add_executable(FR_node src/FR.cpp)
 add_dependencies(FR_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(FR_node ${catkin_LIBRARIES})
+
+add_executable(record_FOF_node src/record_FOF.cpp)
+add_dependencies(record_FOF_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(record_FOF_node ${catkin_LIBRARIES})
 
 add_executable(record_FR_node src/record_FR.cpp)
 add_dependencies(record_FR_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

@@ -1,7 +1,7 @@
 <launch>
   
   <!-- Start the VRPN Client (only needed if recording data)-->
-<!--  <include file="/opt/ros/kinetic/share/vrpn_client_ros/launch/SO_vicon.launch"/> -->
+  <include file="/opt/ros/kinetic/share/vrpn_client_ros/launch/SO_vicon.launch"/>
 
   <!-- Start the camera node -->
   <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
@@ -16,5 +16,8 @@
   
   <!-- Start the optic flow node -->
   <node pkg="object_avoidance" type="Flow6060.py" name="Flow_node" output="screen" />
+
+  <!-- Start the publisher node -->
+  <node pkg="object_avoidance_cpp" type="record_FR_node" name="FR_pub_node" output="screen" />
 
 </launch>
