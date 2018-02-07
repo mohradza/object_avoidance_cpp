@@ -2,6 +2,9 @@
   
   <!-- Start the VRPN Client (only needed if recording data)-->
   <include file="/opt/ros/kinetic/share/vrpn_client_ros/launch/SO_vicon.launch"/>
+  <include file="/opt/ros/kinetic/share/mavros/launch/px4.launch"/>
+
+  <node name="flight_control" pkg="flight_code" type="small_object_flight_code_PX4Flow" output="screen" />
 
   <!-- Start the camera node -->
   <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >

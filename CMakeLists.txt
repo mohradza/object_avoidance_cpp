@@ -11,7 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   message_generation
   std_msgs
-  flight_code
+  object_avoidance
 )
 
 ################################################
@@ -30,7 +30,7 @@ add_message_files(DIRECTORY msg
    FOFFlowMsg.msg
    FOFDTMsg.msg
    FOFAllDataMsg.msg
- )
+)
 
 ## Generate added messages and services with any dependencies listed here
  generate_messages(

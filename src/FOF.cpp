@@ -17,8 +17,7 @@
 #include <std_msgs/Float32.h>
 #include <std_msgs/Bool.h>
 #include <object_avoidance_cpp/YawRateCmdMsg.h>
-#include <object_avoidance_cpp/FlowRingOutMsg.h>
-#include <object_avoidance_cpp/FlowOutNewMsg.h>
+#include <object_avoidance_cpp/RingsFlowMsg.h>
 #include <object_avoidance_cpp/FOFFlowMsg.h>
 #include <object_avoidance_cpp/FOFDTMsg.h>
 #include <iostream>
@@ -48,7 +47,7 @@ private:
     object_avoidance_cpp::YawRateCmdMsg yaw_rate_cmd_msg; 
     int sign, index;
     float gamma_arr[60], gamma_new[60];
-    object_avoidance_cpp::FlowRingOutMsg current_flow;
+    object_avoidance_cpp::RingsFlowMsg current_flow;
     object_avoidance_cpp::FOFFlowMsg flow_out_msg;
     object_avoidance_cpp::FOFDTMsg dt_out_msg;
     bool debug;
@@ -90,10 +89,10 @@ public:
         }
          
     }
-    void flow_cb(const object_avoidance_cpp::FlowRingOutMsg::ConstPtr& msg);
+    void flow_cb(const object_avoidance_cpp::RingsFlowMsg::ConstPtr& msg);
 }; // End of class SubscribeAndPublish
 
-void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::FlowRingOutMsg::ConstPtr& msg)
+void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::ConstPtr& msg)
 {
 
         current_flow = *msg;
