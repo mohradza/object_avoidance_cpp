@@ -77,9 +77,9 @@ public:
         // initialize static variables
         num_points = 60;
         num_rings = 5;
-        k_0 = .5;
-        c_psi = .1;
-        c_d = .1;
+        k_0 = 1;
+        c_psi = .5;
+        c_d = .5;
         
         //Initialize the gamma array
         for (int i = 0; i < num_points; i++) {
@@ -247,7 +247,8 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::Cons
         dt_out_msg.r_0 = r_0;
         dt_out_msg.d_0 = d_0;
         dt_out_pub_.publish(dt_out_msg);
-    }        
+    }       
+    ROS_INFO_THROTTLE(1, "gamma_0: %f, d_0: %f", r_0, abs(d_0)); 
 }
 
 int main(int argc, char **argv) {
