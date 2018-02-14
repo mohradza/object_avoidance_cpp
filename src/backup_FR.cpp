@@ -20,7 +20,6 @@
 #include <object_avoidance_cpp/FRFlowMsg.h>
 #include <object_avoidance_cpp/FRHarmonicsMsg.h>
 #include <object_avoidance_cpp/FRDTMsg.h>
-#include <object_avoidance_cpp/FRAllDataMsg.h>
 #include <iostream>
 #include <numeric>
 //#define PI = 3.1415
@@ -35,7 +34,6 @@ private:
     ros::Publisher flow_out_pub_;
     ros::Publisher harm_out_pub_;
     ros::Publisher dt_out_pub_;
-    ros::Publisher data_out_pub_;
     ros::Subscriber flow_sub;
 
 
@@ -60,35 +58,25 @@ private:
     object_avoidance_cpp::FRFlowMsg flow_out_msg;
     object_avoidance_cpp::FRHarmonicsMsg harm_out_msg;
     object_avoidance_cpp::FRDTMsg dt_out_msg;
-    object_avoidance_cpp::FRAllDataMsg all_data_out_msg;
-
 public:
     SubscribeAndPublish() {
         // ROS_INFO("Object Created");
         
-        debug = false;
-
-        if(debug == true){
-            // Create the yaw rate command publisher
-            yaw_cmd_pub_ = nh_.advertise<object_avoidance_cpp::YawRateCmdMsg>
-                    ("/yaw_cmd", 10);
-            // Create the flow message publisher
-            flow_out_pub_ = nh_.advertise<object_avoidance_cpp::FRFlowMsg>
-                    ("/FR_flow",10);
-            // Create the Harmonics message publisher
-            harm_out_pub_ = nh_.advertise<object_avoidance_cpp::FRHarmonicsMsg>
-                    ("/FR_harmonics",10);
-            // Create the dynamic threshold message publisher
-            dt_out_pub_ = nh_.advertise<object_avoidance_cpp::FRDTMsg>
-                    ("/FR_dt",10);
-        } 
-
-        data_out_pub_ = nh_.advertise<object_avoidance_cpp::FRAllDataMsg>
-                    ("/FR_data_out", 20);
-  
+        // Create the yaw rate command publisher
+        yaw_cmd_pub_ = nh_.advertise<object_avoidance_cpp::YawRateCmdMsg>
+                ("/yaw_cmd", 10);
+        // Create the flow message publisher
+        flow_out_pub_ = nh_.advertise<object_avoidance_cpp::FRFlowMsg>
+                ("/FR_flow",10);
+        // Create the Harmonics message publisher
+        harm_out_pub_ = nh_.advertise<object_avoidance_cpp::FRHarmonicsMsg>
+                ("/FR_harmonics",10);
+        // Create the dynamic threshold message publisher
+        dt_out_pub_ = nh_.advertise<object_avoidance_cpp::FRDTMsg>
+                ("/FR_dt",10);
         // initialize static variables
         num_points = 60;
-        num_rings = 3;
+        num_rings = 5;
         num_harm = 2;
         k_0 = 1;
         c_psi = .5;
@@ -113,20 +101,15 @@ public:
         }
 
         dg = gamma_arr[2] - gamma_arr[1];
+//        ROS_INFO("dg: %f", dg);
     }
     void flow_cb(const object_avoidance_cpp::RingsFlowMsg::ConstPtr& msg);
 }; // End of class SubscribeAndPublish
 
 
-geometry_msgs::PoseStamped vicon_pose;
-void vicon_pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg){
+geometry_msgs::TwistStamped vicon_pose;
+void vicon_cb(const geometry_msgs::TwistStamped::ConstPtr& msg){
     vicon_pose = *msg;
-    ROS_INFO_THROTTLE(10,"POSE CB");
-}
-
-geometry_msgs::TwistStamped vicon_vel;
-void vicon_vel_cb(const geometry_msgs::TwistStamped::ConstPtr& msg){
-    vicon_vel = *msg;
 }
 
 void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::ConstPtr& msg) 
@@ -157,23 +140,24 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::Cons
     yaw_rate_cmd = 0.0;
     min_threshold = 0.0;
     sign = 0;
+    debug = false;
      
     // Compute average ring flow
     for (int r = 0; r < num_rings; r++) {
         for (int i = 0; i < num_points; i++) {
             index = r * num_points + i;
-            average_OF_tang[i] = average_OF_tang[i] + (Qdot_u[index]*cos(gamma_arr[i]) + Qdot_v[index]*sin(gamma_arr[i]));
+            average_OF_tang[i] = average_OF_tang[i] + (Qdot_u[index]*sin(gamma_arr[i]) + Qdot_v[index]*cos(gamma_arr[i]));
         }
     }
 
     // Compute the spatial average
     for (int i = 0; i < num_points; i++){
-        OF_tang[i] = average_OF_tang[i]/num_rings;
+        OF_tang[i] = .2*average_OF_tang[i];
     }
 
     // Compute the FR control
     // // // // // // // // //
-    
+    //a_0 = std::accumulate(OF_tang, OF_tang + num_points, 0.0);
     // Compute coefficients for fourier residuals
 
     for (int i = 0; i < num_points; i++){
@@ -223,12 +207,12 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::Cons
 
     // Extract r_0 and d_0 from process OF signal based on max of Qdot_SF
     for (int i = 0; i < num_points; i++) {
-        if (abs(Qdot_SF[i]) > abs(Qdot_SF[index_max])) {
+        if (Qdot_SF[i] > Qdot_SF[index_max]) {
             index_max = i;
         }
     }
     
-    d_0 = abs(Qdot_SF[index_max]);
+    d_0 = Qdot_SF[index_max];
     // Calculate the control signal      
     if (d_0 > min_threshold) {
         r_0 = gamma_new[index_max];
@@ -238,55 +222,25 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::Cons
     } else {
         yaw_rate_cmd_msg.yaw_rate_cmd = 0.0;
     }
-
-    // Create the Data message
-    all_data_out_msg.header.stamp = ros::Time::now();
-    all_data_out_msg.yaw_cmd = yaw_rate_cmd_msg.yaw_rate_cmd;
-    all_data_out_msg.d_0 = d_0;
-    all_data_out_msg.r_0 = r_0;
-    all_data_out_msg.sigma = std_dev;
-
-    all_data_out_msg.x_pos = vicon_pose.pose.position.x;
-    all_data_out_msg.y_pos = vicon_pose.pose.position.y;
-    all_data_out_msg.z_pos = vicon_pose.pose.position.z;
-    all_data_out_msg.x_orient = vicon_pose.pose.orientation.x;
-    all_data_out_msg.y_orient = vicon_pose.pose.orientation.y;
-    all_data_out_msg.z_orient = vicon_pose.pose.orientation.z;
-    all_data_out_msg.w_orient = vicon_pose.pose.orientation.w;
     
-    all_data_out_msg.vel_x = vicon_vel.twist.linear.x;
-    all_data_out_msg.vel_y = vicon_vel.twist.linear.y;
-    all_data_out_msg.vel_z = vicon_vel.twist.linear.z;
-    all_data_out_msg.angular_vel_z = vicon_vel.twist.angular.z;
-
-
-    for(int i = 0; i < num_points; i++){
-        all_data_out_msg.Qdot_SF.push_back(Qdot_SF[i]);
-    }
-    
-    data_out_pub_.publish(all_data_out_msg);
-    all_data_out_msg.Qdot_SF.clear();
-    
-    // PUBLISHING TOO MUCH WILL CAUSE THE
-    // SYSTEM TO LAG, AFFECTING OF    
-    if(debug == true){
     // Create messages for publishing
-        for(int i= 0; i < num_points; i++){ 
-//          flow_out_msg.Qdot_WF.push_back(Qdot_WF[i]);
-//          flow_out_msg.Qdot_SF.push_back(Qdot_SF[i]);
-//          flow_out_msg.Qdot_meas.push_back(average_OF_tang[i]);
-            flow_out_msg.Qdot_tang.push_back(OF_tang[i]);
-        }
+    for(int i= 0; i < num_points; i++){ 
+//        flow_out_msg.Qdot_WF.push_back(Qdot_WF[i]);
+//        flow_out_msg.Qdot_SF.push_back(Qdot_SF[i]);
+//        flow_out_msg.Qdot_meas.push_back(average_OF_tang[i]);
+        flow_out_msg.Qdot_tang.push_back(OF_tang[i]);
+    }
 
-        // Publish Data
-        flow_out_pub_.publish(flow_out_msg);
-//      flow_out_msg.Qdot_WF.clear();
-//      flow_out_msg.Qdot_SF.clear();
-//      flow_out_msg.Qdot_meas.clear();
-        flow_out_msg.Qdot_tang.clear();
+    // Publish Data
+    flow_out_pub_.publish(flow_out_msg);
+//    flow_out_msg.Qdot_WF.clear();
+//    flow_out_msg.Qdot_SF.clear();
+//    flow_out_msg.Qdot_meas.clear();
+    flow_out_msg.Qdot_tang.clear();
 
-        yaw_cmd_pub_.publish(yaw_rate_cmd_msg);
+    yaw_cmd_pub_.publish(yaw_rate_cmd_msg);
 
+    if(debug == true){
         // Publish the Harmonics
         harm_out_msg.a_0 = a_0;
         for(int i = 0; i < 4; i++){
@@ -302,8 +256,9 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::Cons
         dt_out_msg.r_0 = r_0;
         dt_out_msg.d_0 = d_0;
         dt_out_pub_.publish(dt_out_msg);
-    } // End of debug publisher       
-} // end of flow callback function
+    }       
+//    ROS_INFO_THROTTLE(1, "gamma_0: %f, d_0: %f", r_0, abs(d_0)); 
+}
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "FR");
@@ -312,14 +267,9 @@ int main(int argc, char **argv) {
     SubscribeAndPublish FlowSubPubObject;
 
     ros::Subscriber flow_sub = n.subscribe("/flow_rings", 1000, &SubscribeAndPublish::flow_cb, &FlowSubPubObject);
-    ros::Subscriber vicon_pose_sub = n.subscribe<geometry_msgs::PoseStamped>
-            ("/vrpn_client_node/flow330/pose", 10, vicon_pose_cb);
-    ros::Subscriber vicon_vel_sub = n.subscribe<geometry_msgs::TwistStamped>
-            ("/vrpn_client_node/flow330/twist", 10, vicon_vel_cb);
-
-    while(ros::ok()){
-        ros::spin();
-    }
+    ros::Subscriber vicon_sub = n.subscribe<geometry_msgs::TwistStamped>
+            ("/vrpn_client_node/flow330/pose", 10, vicon_cb);
+    ros::spin();
 
     return 0; // Exit main loop   
 

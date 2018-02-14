@@ -1,6 +1,6 @@
 <launch>
   <node pkg="rosbag" type="record" name="flow_data"
-        args=" -O /tmp/FOF_data /FOF_data_out" />
+        args=" -O /tmp/flight_data /flow_rings" />
 
 </launch>
 

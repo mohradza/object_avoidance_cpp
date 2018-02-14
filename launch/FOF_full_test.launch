@@ -20,7 +20,4 @@
   <!-- Start the optic flow node -->
   <node pkg="object_avoidance" type="Flow6060.py" name="Flow_node" output="screen" />
 
-  <!-- Start the publisher node -->
-  <node pkg="object_avoidance_cpp" type="record_FOF_node" name="FOF_pub_node" output="screen" />
-
 </launch>

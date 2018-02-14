@@ -15,6 +15,7 @@
 #include <object_avoidance_cpp/FRDTMsg.h>
 #include <object_avoidance_cpp/FRHarmonicsMsg.h>
 #include <object_avoidance_cpp/FRAllDataMsg.h>
+#include <object_avoidance_cpp/RingsFlowMsg.h>
 #include <math.h>
 
 // Vicon Pose Callback
@@ -28,6 +29,12 @@ void vicon_pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg){
 geometry_msgs::TwistStamped vicon_vel;
 void vicon_vel_cb(const geometry_msgs::TwistStamped::ConstPtr& msg){
     vicon_vel = *msg;
+}
+
+// DEBUGGING
+object_avoidance_cpp::RingsFlowMsg ring_flow;
+void ring_flow_cb(const object_avoidance_cpp::RingsFlowMsg::ConstPtr& msg){
+    ring_flow = *msg;
 }
 
 
@@ -73,6 +80,8 @@ int main(int argc, char **argv)
             ("/yaw_cmd", 10, cmd_vel_cb);
     ros::Subscriber FR_dt_sub = nh.subscribe<object_avoidance_cpp::FRDTMsg>
             ("/FR_dt", 10, FR_dt_cb);
+    ros::Subscriber flow_ring_sub = nh.subscribe<object_avoidance_cpp::RingsFlowMsg> 
+            ("/flow_rings", 10, ring_flow_cb);
     
     // Publishers
     ros::Publisher FR_flow_pub = nh.advertise<object_avoidance_cpp::FRFlowMsg>
@@ -97,8 +106,11 @@ int main(int argc, char **argv)
         
         flow_msg.Qdot_WF = FR_flow_data.Qdot_WF;
         flow_msg.Qdot_SF = FR_flow_data.Qdot_SF;
+        flow_msg.Qdot_meas = FR_flow_data.Qdot_meas;
         flow_msg.Qdot_tang = FR_flow_data.Qdot_tang;
-
+        flow_msg.Qdot_u = ring_flow.Qdot_u;
+        flow_msg.Qdot_v = ring_flow.Qdot_v;  
+  
         // Create the data message
         data_msg.header.stamp = flow_msg.header.stamp;
 
