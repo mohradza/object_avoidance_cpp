@@ -69,9 +69,6 @@ public:
         debug = false;
 
         if(debug == true){
-            // Create the yaw rate command publisher
-            yaw_cmd_pub_ = nh_.advertise<object_avoidance_cpp::YawRateCmdMsg>
-                    ("/yaw_cmd", 10);
             // Create the flow message publisher
             flow_out_pub_ = nh_.advertise<object_avoidance_cpp::FRFlowMsg>
                     ("/FR_flow",10);
@@ -83,8 +80,11 @@ public:
                     ("/FR_dt",10);
         } 
 
+        // Create the yaw rate command publisher
+        yaw_cmd_pub_ = nh_.advertise<object_avoidance_cpp::YawRateCmdMsg>
+                ("/yaw_cmd", 10);
         data_out_pub_ = nh_.advertise<object_avoidance_cpp::FRAllDataMsg>
-                    ("/FR_data_out", 20);
+                ("/FR_data_out", 20);
   
         // initialize static variables
         num_points = 60;
@@ -239,6 +239,8 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::Cons
         yaw_rate_cmd_msg.yaw_rate_cmd = 0.0;
     }
 
+    yaw_cmd_pub_.publish(yaw_rate_cmd_msg);
+
     // Create the Data message
     all_data_out_msg.header.stamp = ros::Time::now();
     all_data_out_msg.yaw_cmd = yaw_rate_cmd_msg.yaw_rate_cmd;
@@ -284,8 +286,6 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::Cons
 //      flow_out_msg.Qdot_SF.clear();
 //      flow_out_msg.Qdot_meas.clear();
         flow_out_msg.Qdot_tang.clear();
-
-        yaw_cmd_pub_.publish(yaw_rate_cmd_msg);
 
         // Publish the Harmonics
         harm_out_msg.a_0 = a_0;

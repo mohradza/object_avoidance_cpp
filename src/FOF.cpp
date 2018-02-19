@@ -61,16 +61,15 @@ public:
         debug = false;
         
         if (debug == true){
-            yaw_cmd_pub_ = nh_.advertise<object_avoidance_cpp::YawRateCmdMsg>
-                 ("/yaw_cmd", 10);
             flow_out_pub_ = nh_.advertise<object_avoidance_cpp::FOFFlowMsg>
                  ("/FOF_flow", 10);
 //            dt_out_pub_ = nh_.advertise<object_avoidance_cpp::FOFDTMsg>
 //                 ("/FOF_dt", 10);
         }
-
+        yaw_cmd_pub_ = nh_.advertise<object_avoidance_cpp::YawRateCmdMsg>
+             ("/yaw_cmd", 10);
         data_out_pub_ = nh_.advertise<object_avoidance_cpp::FOFAllDataMsg>
-                 ("/FOF_data_out", 20);
+             ("/FOF_data_out", 20);
  
         dt = .1;
         tau = .75;
@@ -194,7 +193,7 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::Cons
         yaw_rate_cmd_msg.yaw_rate_cmd = 0.0;
     }
 //   ROS_INFO_THROTTLE(.5,"d_0 = %f, min thresh = %f, r_0 = %f",d_0,min_threshold, r_0); 
-    //yaw_cmd_pub_.publish(yaw_rate_cmd_msg);    
+    yaw_cmd_pub_.publish(yaw_rate_cmd_msg);    
 
     all_data_out_msg.header.stamp = ros::Time::now();
     all_data_out_msg.yaw_cmd = yaw_rate_cmd_msg.yaw_rate_cmd;
