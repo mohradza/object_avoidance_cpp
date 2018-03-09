@@ -44,7 +44,7 @@ private:
     float R_FOF[60];
     float LP_OF[60]; 
     int num_rings, num_points; 
-    float yaw_rate_cmd;
+    float yaw_rate_cmd, old_yaw_rate_cmd;
     float min_threshold;
     int sign, index;
     float gamma_arr[60], gamma_new[60];
@@ -75,11 +75,13 @@ public:
         tau = .75;
         alpha = dt/(tau+dt);
 //        alpha = 0.0;
-        k_0 = 1;
-        c_psi = .5;
+        k_0 = 1.5;
+        c_psi = .25;
         c_d = .5;
         num_rings = 3;
         num_points = 60;
+        old_yaw_rate_cmd = 0.0;
+
         //Initialize the gamma array
         for(int i = 0; i < num_points; i++){
            gamma_arr[i] = ((2*M_PI-.017)/num_points)*i;
@@ -110,6 +112,15 @@ geometry_msgs::TwistStamped vicon_vel;
 void vicon_vel_cb(const geometry_msgs::TwistStamped::ConstPtr& msg){
     vicon_vel = *msg;
 }
+
+// RCin callback
+int Arr[12];
+void RCin_cb(const mavros_msgs::RCIn::ConstPtr& msg){
+    for(int i = 0; i < 12; i++){
+        Arr[i] = msg->channels[i];
+    }
+}
+
 
 void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::ConstPtr& msg)
 {
@@ -188,11 +199,12 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::Cons
         sign = -1;
     }
     if(d_0 > min_threshold){
-        yaw_rate_cmd_msg.yaw_rate_cmd = k_0*sign*exp(-c_psi*abs(r_0))*exp(-c_d/abs(d_0));
+        yaw_rate_cmd = k_0*sign*exp(-c_psi*abs(r_0))*exp(-c_d/abs(d_0));
     } else {
-        yaw_rate_cmd_msg.yaw_rate_cmd = 0.0;
+        yaw_rate_cmd = 0.0;
     }
-//   ROS_INFO_THROTTLE(.5,"d_0 = %f, min thresh = %f, r_0 = %f",d_0,min_threshold, r_0); 
+
+    yaw_rate_cmd_msg.yaw_rate_cmd = yaw_rate_cmd;
     yaw_cmd_pub_.publish(yaw_rate_cmd_msg);    
 
     all_data_out_msg.header.stamp = ros::Time::now();
@@ -216,8 +228,11 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::Cons
     all_data_out_msg.angular_vel_z = vicon_vel.twist.angular.z;
 
     for(int i = 0; i < num_points; i++){
-        all_data_out_msg.Qdot_SF.push_back(R_FOF[i]);
+        //all_data_out_msg.Qdot_SF.push_back(R_FOF[i]);
+        all_data_out_msg.Qdot_SF.push_back(OF_tang[i]);
     }
+
+    all_data_out_msg.Dswitch = Arr[4];
 
     data_out_pub_.publish(all_data_out_msg);
     all_data_out_msg.Qdot_SF.clear();
@@ -252,6 +267,8 @@ int main(int argc, char **argv){
             ("/vrpn_client_node/flow330/pose", 10, vicon_pose_cb);
     ros::Subscriber vicon_vel_sub = n.subscribe<geometry_msgs::TwistStamped>
             ("/vrpn_client_node/flow330/twist", 10, vicon_vel_cb);
+    ros::Subscriber rcin_sub = n.subscribe<mavros_msgs::RCIn>
+            ("/mavros/rc/in", 10, RCin_cb);
 
     while(ros::ok()){
         ros::spin();

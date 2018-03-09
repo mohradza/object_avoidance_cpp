@@ -1,6 +1,7 @@
 /* @file FR.cpp
- * @brief Fourier Residual processing and control command calulation
+w of Flow processing and control command calulation
  */
+
 
 #include <ros/ros.h>
 #include <ros/console.h>
@@ -10,9 +11,6 @@
 #include <std_msgs/String.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
-#include <mavros_msgs/CommandBool.h>
-#include <mavros_msgs/SetMode.h>
-#include <mavros_msgs/State.h>
 #include <mavros_msgs/RCIn.h>
 #include <std_msgs/Float32.h>
 #include <object_avoidance_cpp/YawRateCmdMsg.h>
@@ -51,7 +49,7 @@ private:
     int num_rings, num_points, num_harm;
     int index, index_max;
     int sign, pixel_scale;
-    float yaw_rate_cmd, min_threshold;
+    float yaw_rate_cmd, old_yaw_rate_cmd, min_threshold;
     float gamma_arr[60], gamma_new[60];
     bool debug;
 
@@ -90,9 +88,10 @@ public:
         num_points = 60;
         num_rings = 3;
         num_harm = 2;
-        k_0 = 1;
-        c_psi = .5;
+        k_0 = 1.5;
+        c_psi = .25;
         c_d = .5;
+        old_yaw_rate_cmd = 0.0;
         
         //Initialize the gamma array
         for (int i = 0; i < num_points; i++) {
@@ -127,6 +126,14 @@ void vicon_pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg){
 geometry_msgs::TwistStamped vicon_vel;
 void vicon_vel_cb(const geometry_msgs::TwistStamped::ConstPtr& msg){
     vicon_vel = *msg;
+}
+
+// RCin callback
+int Arr[12];
+void RCin_cb(const mavros_msgs::RCIn::ConstPtr& msg){
+    for(int i = 0; i < 12; i++){
+        Arr[i] = msg->channels[i];
+    }
 }
 
 void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::ConstPtr& msg) 
@@ -229,16 +236,24 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::Cons
     }
     
     d_0 = abs(Qdot_SF[index_max]);
+    r_0 = gamma_new[index_max];
     // Calculate the control signal      
     if (d_0 > min_threshold) {
-        r_0 = gamma_new[index_max];
         if (r_0 > 0) sign = 1;
         if (r_0 < 0) sign = -1;
-        yaw_rate_cmd_msg.yaw_rate_cmd = k_0 * sign * exp(-c_psi * abs(r_0)) * exp(-c_d / abs(d_0));
+        yaw_rate_cmd = k_0 * sign * exp(-c_psi * abs(r_0)) * exp(-c_d / abs(d_0));
     } else {
-        yaw_rate_cmd_msg.yaw_rate_cmd = 0.0;
+        yaw_rate_cmd = 0.0;
     }
-
+/*
+    if (abs(yaw_rate_cmd - old_yaw_rate_cmd) > .4) {
+        yaw_rate_cmd = old_yaw_rate_cmd;
+    } else {
+        yaw_rate_cmd = yaw_rate_cmd;
+        old_yaw_rate_cmd = yaw_rate_cmd;
+    }
+*/
+    yaw_rate_cmd_msg.yaw_rate_cmd = yaw_rate_cmd;
     yaw_cmd_pub_.publish(yaw_rate_cmd_msg);
 
     // Create the Data message
@@ -265,6 +280,8 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::Cons
     for(int i = 0; i < num_points; i++){
         all_data_out_msg.Qdot_SF.push_back(Qdot_SF[i]);
     }
+
+    all_data_out_msg.Dswitch = Arr[4]; 
     
     data_out_pub_.publish(all_data_out_msg);
     all_data_out_msg.Qdot_SF.clear();
@@ -316,6 +333,9 @@ int main(int argc, char **argv) {
             ("/vrpn_client_node/flow330/pose", 10, vicon_pose_cb);
     ros::Subscriber vicon_vel_sub = n.subscribe<geometry_msgs::TwistStamped>
             ("/vrpn_client_node/flow330/twist", 10, vicon_vel_cb);
+    ros::Subscriber rcin_sub = n.subscribe<mavros_msgs::RCIn>
+            ("/mavros/rc/in", 10, RCin_cb);
+
 
     while(ros::ok()){
         ros::spin();

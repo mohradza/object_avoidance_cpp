@@ -1,9 +1,12 @@
 <launch>
   <include file="/opt/ros/kinetic/share/vrpn_client_ros/launch/SO_vicon.launch"/>
+
+
   <include file="/opt/ros/kinetic/share/mavros/launch/px4.launch"/>
 
-<node name="flight_control" pkg="flight_code" type="small_object_flight_code_PX4Flow" output="screen" />
 
+  <node name="flight_control" pkg="flight_code" type="SO_FC" output="screen" />
+  
   <!-- Start the camera node -->
   <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen" >
     <param name="video_device" value="/dev/video0" />
@@ -12,9 +15,9 @@
     <param name="pixel_format" value="yuyv" />
     <param name="camera_frame_id" value="usb_cam" />
     <param name="io_method" value="mmap"/>
-    <param name="framerate" value="60"/>
+    <param name="framerate" value="30"/>
   </node>
-  
+
   <!-- Start the optic flow node -->
   <node pkg="object_avoidance" type="Flow6060.py" name="Flow_node" output="screen" />
 

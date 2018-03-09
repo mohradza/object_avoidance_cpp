@@ -20,3 +20,4 @@ float32 angular_vel_z
 
 float32[] Qdot_SF
 
+int16 Dswitch
