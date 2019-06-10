@@ -85,14 +85,15 @@ public:
 
         // initialize static variables
         num_points = 60;
-        num_rings = 3;
+        //num_rings = 3;
+        private_nh.param("NUM_HARMONICS", num_harm, 3);
         num_harm = 2;
-        //private_nh.param("K_0", k_0, 1.5);
-        k_0 = 1.5;
-        //private_nh.param("C_PSI", c_psi, .25);
-        c_psi = .25;
-        //private_nh.param("C_D", c_d, .5);
-        c_d = .5;
+        private_nh.param("K_0", k_0, 1.5);
+        //k_0 = 1.5;
+        private_nh.param("C_PSI", c_psi, .25);
+        //c_psi = .25;
+        private_nh.param("C_D", c_d, .5);
+        //c_d = .5;
 
         old_yaw_rate_cmd = 0.0;
 
@@ -155,7 +156,8 @@ void SubscribeAndPublish::flow_cb(const object_avoidance_cpp::RingsFlowMsg::Cons
             b[i] = 0.0;
         }
     }
-    // Parameters
+
+    // Variables
     a_0 = 0.0;
     mean_val = 0.0;
     mean_sum = 0.0;
